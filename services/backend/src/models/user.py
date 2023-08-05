@@ -1,16 +1,9 @@
 import uuid
-from typing import Optional
+from typing import Optional, Union
 from pydantic import BaseModel, Field
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    user_name: str
-
 class User(BaseModel):
-    id: str = Field(default_factory=uuid.uuid4, alias="_id")
+    id: Union[str, uuid.UUID] = Field(default_factory=uuid.uuid4, alias="_id")
     name: str = Field(...)
     user_name: str = Field(...)
     disabled: Optional[bool] = False
@@ -21,5 +14,4 @@ class User(BaseModel):
         hide_input_in_errors=True
 
 class UserDB(User):
-    password: str = Field(...)
-
+    password: str = Field(pattern=r'[A-Za-z0-9@#$%^&+=\-\_]{8,}')

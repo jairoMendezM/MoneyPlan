@@ -1,4 +1,4 @@
-config.py
-database_connection.py
+profiles/
 *.pyc
 venv/
+notes

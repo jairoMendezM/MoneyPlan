@@ -1,0 +1,30 @@
+version: '3'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: ./services/backend/Dockerfile
+    ports:
+      - 5000:5000
+    environment:
+      - DATABASE_URL=mongodb://admin:password123@localhost:6000/money_plan?authSource=admin
+    volumes:
+      - ./services/backend:/app
+    command: uvicorn src.main:app --reload --host 0.0.0.0 --port 5000
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: money_plan
+    volumes:
+      - mongo:/data/db
+    ports:
+      - 6000:27017
+
+volumes:
+  mongo:
