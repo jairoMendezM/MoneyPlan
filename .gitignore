@@ -1,4 +1,3 @@
-config.py
-database_connection.py
 *.pyc
 venv/
+notes
