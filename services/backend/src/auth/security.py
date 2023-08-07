@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 from jose import jwt
 from passlib.context import CryptContext
-
+from typing import Optional
 import re
 
+from fastapi.security.utils import get_authorization_scheme_param
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2
 
 from ..utils.config import settings
 from ..crud.user import getUser
@@ -13,7 +15,37 @@ from ..models.auth import TokenData
 from ..models.user import UserDB
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oath2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login", scheme_name="JWT")
+
+class OAuth2PasswordBearerCookie(OAuth2):
+    def __init__(
+        self,
+        token_url: str,
+        scheme_name: str = None,
+        scopes: dict = None,
+        auto_error: bool = True,
+    ):
+        if not scopes:
+            scopes = {}
+        flows = OAuthFlowsModel(password={"tokenUrl": token_url, "scopes": scopes})
+        super().__init__(flows=flows, scheme_name=scheme_name, auto_error=auto_error)
+
+    async def __call__(self, request: Request) -> Optional[str]:
+        authorization: str = request.cookies.get("Authorization")
+        scheme, param = get_authorization_scheme_param(authorization)
+
+        if not authorization or scheme.lower() != "bearer":
+            if self.auto_error:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Not authenticated",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            else:
+                return None
+
+        return param
+
+security_scheme = OAuth2PasswordBearerCookie(token_url="/user/login")
 
 def verify_password_regex(password) -> bool:
     return re.search(r'[A-Za-z0-9@#$%^&+=\-\_]{8,}', password)
@@ -50,7 +82,7 @@ def authenticate_user(request: Request, user_name: str, password: str):
         return user
     return False
 
-async def get_current_user(request: Request, token: str = Depends(oath2_scheme)):
+async def get_current_user(request: Request, token: str = Depends(security_scheme)):
     credential_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                          detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
     try:
@@ -58,11 +90,9 @@ async def get_current_user(request: Request, token: str = Depends(oath2_scheme))
             token, settings.jwt_secret_key, algorithms=settings.jwt_algorithm)
         user_name: str = payload.get("sub")
         token_data = TokenData(user_name=user_name)
-    except jwt.JWTError:
+    except jwt.JWTError as e:
         raise credential_exception
-
     user = getUser(request.app.database, token_data.user_name)
-
     if user is None:
         raise credential_exception
 

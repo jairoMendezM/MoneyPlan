@@ -1,19 +1,5 @@
 version: '3'
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: ./services/backend/Dockerfile
-    ports:
-      - 5000:5000
-    environment:
-      - DATABASE_URL=mongodb://admin:password123@localhost:6000/money_plan?authSource=admin
-    volumes:
-      - ./services/backend:/app
-    command: uvicorn src.main:app --reload --host 0.0.0.0 --port 5000
-    depends_on:
-      - mongo
-
   mongo:
     image: mongo:latest
     container_name: mongo
@@ -24,7 +10,28 @@ services:
     volumes:
       - mongo:/data/db
     ports:
-      - 6000:27017
+      - 27017:27017
+    networks:
+      - money_plan_network
+
+  backend:
+    build: ./services/backend/
+    ports:
+      - 5000:5000
+    environment:
+      - DATABASE_URL=mongodb://admin:password123@mongo:27017/money_plan?authSource=admin
+    volumes:
+      - './services/backend:/app'
+    command: uvicorn src.main:app --reload --host 0.0.0.0 --port 5000
+    depends_on:
+      - mongo
+    links:
+      - mongo
+    networks:
+      - money_plan_network
+
+networks:
+    money_plan_network:
 
 volumes:
   mongo:

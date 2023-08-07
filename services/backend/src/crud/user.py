@@ -15,10 +15,10 @@ def updateUser(database: Database, user_name: str, updated_user: dict):
     del updated_user['_id']
     return database.user.find_one_and_replace({"user_name": user_name}, updated_user)
 
-def deleteUser(database: Database, user_name:str):
+def deleteUser(database: Database, user_name: str):
     if (user := database.user.find_one({'user_name': user_name})) is not None:
-        deleted = database.user.drop({'user_name': {user_name}})
+        deleted = database.user.delete_one({'user_name': user_name})
         if not deleted:
-            raise HTTPException(status_code=404, detail=f"User {user_name} not found")
+            raise HTTPException(status_code=400, detail=f"Could not delete user {user_name}")
         return Status(message=f"Deleted user {user_name}")
-    raise HTTPException(status_code=403, detail=f"Not authorized to delete")
+    raise HTTPException(status_code=404, detail=f"User {user_name} not found")

@@ -1,4 +1,15 @@
+from fastapi import APIRouter, Request, HTTPException, status, Response
+from fastapi import Body, Depends
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
+
+from datetime import timedelta
+from jose import jwt
+
 from ..models.user import User, UserDB
+from ..crud.income import deleteIncomesByUser
+from ..crud.expense import deleteExpensesByUser
 from ..crud.user import *
 
 from ..utils.config import settings
@@ -13,16 +24,6 @@ from ..auth.security import (
     get_hashed_password
     )
 
-from fastapi import APIRouter, Request, HTTPException, status, Response
-from fastapi import Body, Depends
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordRequestForm
-
-from datetime import timedelta
-from jose import jwt
-
-
 user_router = APIRouter()
 
 @user_router.post("/register/", summary="Create a new user", status_code=status.HTTP_201_CREATED, response_model=User)
@@ -32,16 +33,6 @@ async def create_user(request: Request, user_data: UserDB) -> User:
     if user is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                             detail='User already exist')
-
-    # Check if user already exists
-    # users = getAllUsersList(request.app.database, {"_id": 0, "user_name": 1})
-    # users = get_items(users, 'user_name')
-    # print("USERS", users)
-    # if new_user['user_name'] in users:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail="User with this user name already exist"
-    #     )
 
     # check password requirements
     if not verify_password_regex(new_user['password']):
@@ -80,7 +71,7 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
 
 @user_router.get("/all", summary="Get all active users")
 async def get_users(request: Request, current_user: User = Depends(get_current_active_user)):
-    users = getAllUsersList(request.app.database, {"_id": 0, "user_name": 0})
+    users = getAllUsersList(request.app.database, {"_id": 0})
     return users
 
 @user_router.get("/me/", summary="Get current user information", response_model=User)
@@ -114,5 +105,13 @@ async def put_user(request: Request, user_data: UserDB, current_user: User = Dep
         return updated_user
     raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail=f"Could not update user {user_name}")
 
-# @user_router.delete("/user/{user_name}")
-# async def delete_user(request: Request, user_name: str, User = Depends(get_current_active_user)):
+@user_router.delete("/delete/{user_name}")
+async def delete_user(request: Request, user_name: str, current_user: User = Depends(get_current_active_user)):
+    result = deleteIncomesByUser(request.app.database, user_name)
+    if result != status.HTTP_200_OK:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Could not delete income for user {user_name}")
+    result = deleteExpensesByUser(request.app.database, user_name)
+    if result != result.HTTP_200_OK:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Could not delete expense for user {user_name}")
+    result = deleteUser(request.app.database, user_name)
+    return result
