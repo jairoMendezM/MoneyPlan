@@ -4,18 +4,26 @@ from fastapi.encoders import jsonable_encoder
 
 from datetime import date as Date
 from typing import Optional, Union
+import uuid
 
 from ..models.user import User
 from ..models.income import Income
 from ..models.auth import Status
 
-from ..crud.income import *
+from ..crud.income import (
+    createIncome,
+    getIncome,
+    getIncomesByUser,
+    getUserTotalIncome,
+    getUserTotalIncomeByCategory,
+    deleteIncomesByUser
+)
 
 from ..auth.security import get_current_active_user
 
 income_router = APIRouter()
 
-@income_router.post("/add_income/", summary="Add income", status_code=status.HTTP_201_CREATED)
+@income_router.post("/", summary="Add income", status_code=status.HTTP_201_CREATED)
 async def add_income(request: Request, income: Income, current_user: User = Depends(get_current_active_user)) -> Income:
     income = jsonable_encoder(income)
     createIncome(request.app.database, income)
@@ -46,7 +54,7 @@ async def get_total_income_user_category(request: Request, from_date: Date, to_d
         return total
     raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail=f"Could not get total income for the user {current_user['user_name']}")
 
-@income_router.delete("/delete")
+@income_router.delete("/")
 async def delete_income_by_user(request: Request, user_name: str, id: Optional[Union[str, uuid.UUID]] = None):
     result = deleteIncomesByUser(request.app.database, user_name, id)
     if result == status.HTTP_200_OK:
