@@ -10,6 +10,7 @@ from jose import jwt
 from ..models.user import User, UserDB
 from ..crud.income import deleteIncomesByUser
 from ..crud.expense import deleteExpensesByUser
+from ..crud.budget import deleteBudgetsByUser
 from ..crud.user import *
 
 from ..utils.config import settings
@@ -105,7 +106,7 @@ async def put_user(request: Request, user_data: UserDB, current_user: User = Dep
         return updated_user
     raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail=f"Could not update user {user_name}")
 
-@user_router.delete("/delete/{user_name}")
+@user_router.delete("/{user_name}")
 async def delete_user(request: Request, user_name: str, current_user: User = Depends(get_current_active_user)):
     result = deleteIncomesByUser(request.app.database, user_name)
     if result != status.HTTP_200_OK:
@@ -113,5 +114,6 @@ async def delete_user(request: Request, user_name: str, current_user: User = Dep
     result = deleteExpensesByUser(request.app.database, user_name)
     if result != result.HTTP_200_OK:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Could not delete expense for user {user_name}")
+    result = deleteBudgetsByUser(request.app.database, user_name)
     result = deleteUser(request.app.database, user_name)
     return result
